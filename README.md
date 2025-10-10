@@ -58,12 +58,13 @@ pip install -r requirements.txt
 
 ## 4️⃣ Configure your environment
 Create a .env file:
-env
+```env
 FLASK_APP=app.py
 FLASK_ENV=development
 SECRET_KEY=supersecretkey
 JWT_SECRET_KEY=yourjwtsecret
 SQLALCHEMY_DATABASE_URI=postgresql+psycopg2://user:password@host:port/dbname
+```
 
 ## 🧱 Database Setup
 If using Railway, add a PostgreSQL plugin and copy its connection string.
