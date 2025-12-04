@@ -1,5 +1,6 @@
 from flask_jwt_extended import JWTManager
 from flask_sqlalchemy import SQLAlchemy
+from flask_cors import CORS
 from datetime import timedelta
 from dotenv import load_dotenv
 from flask import Flask
@@ -27,6 +28,16 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config["JWT_SECRET_KEY"] = JWT_SECRET_KEY
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=ACCESS_EXPIRES_MINUTES)
 app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=REFRESH_EXPIRES_DAYS)
+
+
+CORS(
+    app,
+    resources={r"/*": {"origins": lambda origin: True}},
+    supports_credentials=True,
+    allow_headers=["Content-Type", "Authorization"],
+    expose_headers=["Authorization"],
+    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+)
 
 
 # Initialize DB
