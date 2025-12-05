@@ -4,7 +4,9 @@ from core.models import *
 from core.chat import *
 from core import app, db
 from werkzeug.utils import secure_filename
+from datetime import timedelta
 from functools import wraps
+import uuid
 from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token # get_jwt
 
 
@@ -13,7 +15,7 @@ def role_required(required_role):
         @wraps(fn)
         @jwt_required()
         def decorated(*args, **kwargs):
-            user_id = get_jwt_identity()
+            user_id = uuid.UUID(get_jwt_identity())
             user = User.query.get(user_id)
             if not user or user.role != required_role:
                 return jsonify({"msg": "forbidden"}), 403
@@ -94,7 +96,7 @@ def login():
     user = User.query.filter_by(email=email).first()
     if not user or not user.check_password(password):
         return jsonify({"msg": "invalid credentials"}), 401
-    access = create_access_token(identity=user.id)
+    access = create_access_token(identity=str(user.id))
     # make server-stored refresh token (session)
     session = create_session_for_user(user.id)
     return jsonify({
@@ -116,7 +118,7 @@ def refresh():
     if not s or s.expires_at < datetime.now(timezone.utc):
         return jsonify({"msg": "invalid or expired refresh token"}), 401
     # create new access token
-    access = create_access_token(identity=s.user_id)
+    access = create_access_token(identity=str(s.user_id))
     return jsonify({"access_token": access, "user_id": s.user_id})
 
 
@@ -136,7 +138,7 @@ def logout():
 @app.route("/me", methods=["GET"])
 @jwt_required()
 def me():
-    user_id = get_jwt_identity()
+    user_id = uuid.UUID(get_jwt_identity())
     user = User.query.get(user_id)
     return jsonify({
         "id": user.id,
@@ -151,7 +153,7 @@ def me():
 @app.route("/chat", methods=["POST"])
 @jwt_required()
 def chat():
-    user_id = get_jwt_identity()
+    user_id = uuid.UUID(get_jwt_identity())
     data = request.json or {}
     message = data.get("message")
     session_id = data.get("session_id")
@@ -231,7 +233,7 @@ def chat():
 @app.route("/chats", methods=["GET"])
 @jwt_required()
 def get_chats():
-    user_id = get_jwt_identity()
+    user_id = uuid.UUID(get_jwt_identity())
     page = int(request.args.get("page", 1))
     per_page = int(request.args.get("per_page", 20))
     q = ChatHistory.query.filter_by(user_id=user_id).order_by(ChatHistory.timestamp.desc())
@@ -245,7 +247,7 @@ def get_chats():
 @app.route("/sessions", methods=["GET"])
 @jwt_required()
 def list_sessions():
-    user_id = get_jwt_identity()
+    user_id = uuid.UUID(get_jwt_identity())
     sessions = Session.query.filter_by(user_id=user_id).order_by(Session.created_at.desc()).all()
     out = [{
         "id": str(s.id),
@@ -259,7 +261,7 @@ def list_sessions():
 @app.route("/repos", methods=["POST"])
 @jwt_required()
 def create_repo():
-    user_id = get_jwt_identity()
+    user_id = uuid.UUID(get_jwt_identity())
     data = request.json or {}
     repo_name = data.get("repo_name")
     repo_url = data.get("repo_url")
@@ -275,7 +277,7 @@ def create_repo():
 @app.route("/repos/<repo_id>/files", methods=["POST"])
 @jwt_required()
 def add_file(repo_id):
-    user_id = get_jwt_identity()
+    user_id = uuid.UUID(get_jwt_identity())
     repo = Repository.query.filter_by(id=repo_id, user_id=user_id).first()
     if not repo:
         return jsonify({"msg": "repo not found"}), 404
@@ -356,7 +358,7 @@ def ingest_repo(repo_id):
     Hugging Face will generate embeddings automatically.
     Useful if you want to reprocess files with a new model or new chunking rules.
     """
-    user_id = get_jwt_identity()
+    user_id = uuid.UUID(get_jwt_identity())
     repo = Repository.query.filter_by(id=repo_id, user_id=user_id).first()
     if not repo:
         return jsonify({"msg": "repo not found"}), 404
@@ -394,7 +396,7 @@ def search():
       use_semantic (optional, boolean flag)
       top_k (optional, default=10)
     """
-    user_id = get_jwt_identity()
+    user_id = uuid.UUID(get_jwt_identity())
     q = request.args.get("q", "")
     use_semantic = request.args.get("use_semantic", "false").lower() == "true"
     top_k = int(request.args.get("top_k", 10))
@@ -455,7 +457,7 @@ def search():
 @app.route("/bookmarks", methods=["POST"])
 @jwt_required()
 def create_bookmark():
-    user_id = get_jwt_identity()
+    user_id = uuid.UUID(get_jwt_identity())
     data = request.json or {}
     chat_id = data.get("chat_id")
     repo_id = data.get("repo_id")
@@ -473,7 +475,7 @@ def create_bookmark():
 @app.route("/bookmarks", methods=["GET"])
 @jwt_required()
 def list_bookmarks():
-    user_id = get_jwt_identity()
+    user_id = uuid.UUID(get_jwt_identity())
     bms = Bookmark.query.filter_by(user_id=user_id).order_by(Bookmark.created_at.desc()).all()
     out = []
     for b in bms:
@@ -491,7 +493,7 @@ def list_bookmarks():
 @app.route("/bookmarks/<bookmark_id>", methods=["GET"])
 @jwt_required()
 def get_bookmark(bookmark_id):
-    user_id = get_jwt_identity()
+    user_id = uuid.UUID(get_jwt_identity())
     bm = Bookmark.query.filter_by(id=bookmark_id, user_id=user_id).first()
     if not bm:
         return jsonify({"msg": "bookmark not found"}), 404
@@ -509,7 +511,7 @@ def get_bookmark(bookmark_id):
 @app.route("/bookmarks/<bookmark_id>", methods=["DELETE"])
 @jwt_required()
 def delete_bookmark(bookmark_id):
-    user_id = get_jwt_identity()
+    user_id = uuid.UUID(get_jwt_identity())
     bm = Bookmark.query.filter_by(id=bookmark_id, user_id=user_id).first()
     if not bm:
         return jsonify({"msg": "bookmark not found"}), 404

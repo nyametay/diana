@@ -10,7 +10,7 @@ from core import app
 
 # ---------- Helper functions ----------
 def create_session_for_user(user_id):
-    refresh = create_refresh_token(identity=user_id)
+    refresh = create_refresh_token(identity=str(user_id))
     expires_at = datetime.now(timezone.utc) + app.config["JWT_REFRESH_TOKEN_EXPIRES"]
     session = Session(user_id=user_id, token=refresh, expires_at=expires_at)
     db.session.add(session)

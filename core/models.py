@@ -142,4 +142,3 @@ class Embedding(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     file = db.relationship("File", back_populates="embeddings")
-
