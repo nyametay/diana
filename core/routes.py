@@ -1,6 +1,7 @@
 from flask import request, jsonify
 from core.modules import *
 from core.models import *
+from core.chat import *
 from core import app, db
 from werkzeug.utils import secure_filename
 from functools import wraps
@@ -147,52 +148,51 @@ def me():
     })
 
 
-# ---------- Chat (stub LLM) ----------
-def call_llm_stub(user_message, context=None):
-    """
-    Replace this stub with actual LLM integration (OpenAI, Anthropic, local model).
-    For now, it returns a reversed message + a tiny note.
-    """
-    print(context)
-    response_text = f"[LLM response to] {user_message[::-1]}"
-    return response_text
-
-
-def summarize_chat(history):
-    """
-    Stub: Replace with real summarization model.
-    """
-    combined = " ".join([f"User: {h.message} Assistant: {h.response}" for h in history])
-    return f"[Summary of {len(history)} messages] {combined[:200]}..."
-
-
 @app.route("/chat", methods=["POST"])
 @jwt_required()
 def chat():
     user_id = get_jwt_identity()
     data = request.json or {}
     message = data.get("message")
-    session_id = data.get("session_id")  # NEW: optional
-    context_window = int(data.get("context_window", 5))  # NEW: configurable
+    session_id = data.get("session_id")
+    context_window = int(data.get("context_window", 5))
 
     if not message:
         return jsonify({"msg": "message required"}), 400
 
-    # If no session_id provided → create one
+    # If no session ID → create a new session
     if not session_id:
-        s = Session(user_id=user_id, token=str(uuid.uuid4()), expires_at=datetime.now(timezone.utc) + timedelta(days=1))
+        s = Session(
+            user_id=user_id,
+            token=str(uuid.uuid4()),
+            summary=None,
+            expires_at=datetime.now(timezone.utc) + timedelta(days=1)
+        )
         db.session.add(s)
         db.session.commit()
         session_id = str(s.id)
 
-    # Load recent messages for context
-    context_msgs = ChatHistory.query.filter_by(user_id=user_id, session_id=session_id).order_by(ChatHistory.timestamp.desc()).limit(context_window).all()
+    # Load session
+    session = Session.query.get(session_id)
+
+    # Load recent messages for short-term context
+    context_msgs = (
+        ChatHistory.query
+        .filter_by(user_id=user_id, session_id=session_id)
+        .order_by(ChatHistory.timestamp.desc())
+        .limit(context_window)
+        .all()
+    )
     context = [{"message": c.message, "response": c.response} for c in reversed(context_msgs)]
 
-    # Call LLM (stub for now, later OpenAI/HF)
-    response_text = call_llm_stub(message, context=context)
+    # Full LLM
+    response_text = generate(
+        input_text=message,
+        summary=session.summary or "",
+        context=context
+    )
 
-    # Save chat history
+    # Save chat
     chat_ = ChatHistory(
         user_id=user_id,
         session_id=session_id,
@@ -202,6 +202,22 @@ def chat():
     )
     db.session.add(chat_)
     db.session.commit()
+
+    # Auto-summarization every 20 messages
+    total_count = ChatHistory.query.filter_by(
+        user_id=user_id,
+        session_id=session_id
+    ).count()
+
+    if total_count % 20 == 0:
+        full_history = ChatHistory.query.filter_by(
+            user_id=user_id,
+            session_id=session_id
+        ).order_by(ChatHistory.timestamp.asc()).all()
+
+        new_summary = summarize_chat(full_history)
+        session.summary = new_summary
+        db.session.commit()
 
     return jsonify({
         "chat_id": str(chat_.id),
