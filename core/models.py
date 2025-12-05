@@ -57,7 +57,7 @@ class Session(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=False)
     token = db.Column(db.Text, unique=True, nullable=False)
-    summary = db.Column(db.Text, nullable=False)
+    summary = db.Column(db.Text, nullable=True)
     expires_at = db.Column(db.DateTime(timezone=True), nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     revoked = db.Column(db.Boolean, default=False)
@@ -142,3 +142,4 @@ class Embedding(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     file = db.relationship("File", back_populates="embeddings")
+
