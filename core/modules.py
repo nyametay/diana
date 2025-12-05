@@ -5,7 +5,7 @@ from PyPDF2 import PdfReader
 import docx
 import re
 from core.models import *
-from core import *
+from core import app
 
 
 # ---------- Helper functions ----------

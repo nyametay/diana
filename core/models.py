@@ -1,5 +1,5 @@
 from werkzeug.security import generate_password_hash, check_password_hash
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID, JSON
 from datetime import datetime, timezone
 from core import db
 import uuid
@@ -57,6 +57,7 @@ class Session(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=False)
     token = db.Column(db.Text, unique=True, nullable=False)
+    summary = db.Column(db.Text, nullable=False)
     expires_at = db.Column(db.DateTime(timezone=True), nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     revoked = db.Column(db.Boolean, default=False)
@@ -75,7 +76,7 @@ class ChatHistory(db.Model):
     message = db.Column(db.Text, nullable=False)
     response = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    chat_metadata = db.Column(JSONB)
+    chat_metadata = db.Column(JSON)
 
     user = db.relationship("User", back_populates="chats")
     session = db.relationship("Session", back_populates="chats")
@@ -137,7 +138,7 @@ class Embedding(db.Model):
     file_id = db.Column(UUID(as_uuid=True), db.ForeignKey("files.id"), nullable=False)
     chunk_index = db.Column(db.Integer, nullable=False)
     chunk_text = db.Column(db.Text, nullable=False)
-    embedding = db.Column(JSONB, nullable=False)
+    embedding = db.Column(JSON, nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     file = db.relationship("File", back_populates="embeddings")
